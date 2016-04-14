@@ -5,6 +5,7 @@ import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import utils.OutMT;
+import utils.SerializedObject;
 
 public class Worker implements Runnable{
 
@@ -30,6 +31,14 @@ public class Worker implements Runnable{
             //apro il File di input e lo incapsulo in BufferedReader
             FileReader fileReader = new FileReader(Consts.filePath + file); //Throws FileNotFoundException
             BufferedReader bufferedReader = new BufferedReader(fileReader);
+            
+            //Preparo l'oggetto da inviare
+            SerializedObject sObject = new SerializedObject();
+            sObject.setCommand("COUNT");
+            while ((line = bufferedReader.readLine()) != null) { //Throws IOException                
+                
+                sObject.addToTarget(line);
+            }
 
             //Instauro una connessione con il server
             Socket socket = null;
@@ -44,43 +53,27 @@ public class Worker implements Runnable{
             }
             
             //Inizializzo i buffer per la lettura/scrittura sul socket
+            ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
+            outputStream.writeObject(sObject);
+
+
             InputStreamReader inputStreamReader = null;
             try {
                 inputStreamReader = new InputStreamReader(socket.getInputStream());
             } catch (IOException ex) {
                 Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
             }
-
             BufferedReader socketReader = new BufferedReader(inputStreamReader);
-
-            OutputStreamWriter outputStreamWriter = null;
-            try {
-                outputStreamWriter = new OutputStreamWriter(socket.getOutputStream());
-            } catch (IOException ex) {
-                Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
-            }
-
-            BufferedWriter bufferedWriter = new BufferedWriter(outputStreamWriter);
-            PrintWriter socketWriter = new PrintWriter(bufferedWriter);
             
-            //Finchè ci sono righe da leggere, leggo una riga e conto le parole ivi contenute
-            int wordCount = 0;
-            while ((line = bufferedReader.readLine()) != null) { //Throws IOException                
+            while (!inputStreamReader.ready()) {
                 
-                socketWriter.println(line);
-                
-                while (true) {
-                    if (inputStreamReader.ready()) {
-                        
-                        wordCount += Integer.valueOf(socketReader.readLine());
-                        break;
-                    }
+                try {
+                    Thread.sleep(250);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                // ELABORAZIONE
-                String[] words = line.split(" ");
-                wordCount += words.length;
             }
-
+            int wordCount = Integer.parseInt(socketReader.readLine());
             //Chiudo il file di input
             bufferedReader.close();
 
