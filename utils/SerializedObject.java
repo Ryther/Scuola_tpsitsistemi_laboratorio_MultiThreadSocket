@@ -8,6 +8,12 @@ public class SerializedObject implements java.io.Serializable {
     
     private String command;
     private StringBuilder target;
+    
+    public SerializedObject() {
+        
+        this.command = new String();
+        this.target = new StringBuilder();
+    }
 
     public String getCommand() {
         
@@ -32,5 +38,10 @@ public class SerializedObject implements java.io.Serializable {
     public void addToTarget(String string) {
         
         this.target.append(string);
+    }
+    
+    public void resetTarget() {
+        
+        this.target.delete(0, this.target.length());
     }
 }
