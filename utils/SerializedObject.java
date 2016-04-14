@@ -45,4 +45,10 @@ public class SerializedObject implements java.io.Serializable {
         
         this.target.delete(0, this.target.length());
     }
+    
+    @Override
+    public String toString() {
+        
+        return this.target.toString();
+    }
 }
