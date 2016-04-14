@@ -1,15 +1,15 @@
 package server;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import utils.OutMT;
+import utils.SerializedObject;
 
 /**
  *
@@ -26,15 +26,27 @@ public class Service implements Runnable {
     @Override
     public void run() {
 
-        InputStreamReader inputStreamReader = null;
+        ObjectInputStream inputStream = null;
         try {
-            inputStreamReader = new InputStreamReader(socket.getInputStream());
+            inputStream = new ObjectInputStream(socket.getInputStream());
         } catch (IOException ex) {
-            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
         }
-
-        BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-
+        
+        SerializedObject sObject = null;
+        try {
+            sObject = (SerializedObject) inputStream.readObject();
+        } catch (IOException ex) {
+            Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ClassNotFoundException ex) {
+            Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        switch(sObject.getCommand()) {
+            case "COUNT":
+                //PROGRAMMANDO QUI
+                break;
+        }
         OutputStreamWriter outputStreamWriter = null;
         try {
             outputStreamWriter = new OutputStreamWriter(socket.getOutputStream());
