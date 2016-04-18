@@ -1,5 +1,6 @@
 package runner;
 
+import utils.Lock;
 import java.io.*;
 import java.net.Socket;
 import java.util.logging.Level;
@@ -9,6 +10,7 @@ import utils.SerializedObject;
 
 public class Worker implements Runnable{
 
+    private OutMT debugging = new OutMT();
     private String file = null;
     private StringBuilder messageBuilder = new StringBuilder();
     
@@ -20,6 +22,7 @@ public class Worker implements Runnable{
     // worker process con protezione accesso risorse condivise
     @Override
     public void run() {
+        debugging.activate();
         //Nome del file da leggere + Stringa per leggere le singole righe + Random per simulazione attesa
         String line = null;
 
@@ -37,7 +40,7 @@ public class Worker implements Runnable{
             sObject.setCommand("COUNT");
             while ((line = bufferedReader.readLine()) != null) { //Throws IOException                
                 
-                sObject.addToTarget(line);
+                sObject.addToTarget(line+"\n");
             }
 
             //Instauro una connessione con il server
@@ -52,11 +55,12 @@ public class Worker implements Runnable{
                 }
             }
             
-            //Inizializzo i buffer per la lettura/scrittura sul socket
+            // Inizializzo i buffer per la scrittura sul socket
             ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
             outputStream.writeObject(sObject);
 
 
+            // Inizializzo i buffer per la lettura dal socket
             InputStreamReader inputStreamReader = null;
             try {
                 inputStreamReader = new InputStreamReader(socket.getInputStream());
@@ -65,15 +69,13 @@ public class Worker implements Runnable{
             }
             BufferedReader socketReader = new BufferedReader(inputStreamReader);
             
-            while (!inputStreamReader.ready()) {
-                
-                try {
-                    Thread.sleep(250);
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-            int wordCount = Integer.parseInt(socketReader.readLine());
+            debugging.threadMessage("Inizio ricezione");
+            String test = socketReader.readLine();
+            debugging.threadMessage("Stringa letta: " + test);
+            int wordCount;
+            wordCount = Integer.parseInt(test);
+            debugging.threadMessage(String.valueOf(wordCount));
+            
             //Chiudo il file di input
             bufferedReader.close();
 
