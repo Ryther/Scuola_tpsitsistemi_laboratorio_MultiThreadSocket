@@ -64,14 +64,6 @@ public class Service implements Runnable {
         }
         // Fine lettura oggetto serializzabile dallo stream
         
-        // Chiudo il canale in lettura non più necessario
-        try {
-            inputStream.close();
-        } catch (IOException ex) {
-            Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        // Fine chiusura canale in lettura
-        
         // Switch/Case per la gestione dei comandi inviati al server
         debugging.threadMessage("Switch/Case per la gestione dei comandi inviati al server");
         if (!sObject.isResponse()) {
@@ -93,13 +85,24 @@ public class Service implements Runnable {
                     break;
                 // Di default viene ritornato un errore se il comando non viene riconosciuto
                 default:
-                    printWriter.println(new StringBuilder("ERRORE-404: Comando non riconosciuto").toString());
+                    printWriter.println("ERRORE-404: Comando non riconosciuto");
                     break;
             }
+        } else {
+            
+            printWriter.println("ERRORE-500: Atteso messaggio, ricevuta risposta");
         }
         // Fine del Switch/case per la gestione comandi
         
         // Chiudo tutti i flussi aperti
+        // Chiudo il canale in lettura non più necessario
+        try {
+            inputStream.close();
+        } catch (IOException ex) {
+            Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        // Fine chiusura canale in lettura
+        // Chiudo il canale (e relativi wrapper) di scrittura
         printWriter.close();
         try {
             bufferedWriter.close();
@@ -111,5 +114,6 @@ public class Service implements Runnable {
         } catch (IOException ex) {
             Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
         }
+        // Fine chiusura del canale (e relativi wrapper) di scrittura
     }
 }
