@@ -24,7 +24,6 @@ public class Worker implements Runnable{
     public void run() {
         debugging.activate();
         //Nome del file da leggere + Stringa per leggere le singole righe + Random per simulazione attesa
-        String line = null;
 
         try {
             //Misuro il tempo effettivo di esecuzione
@@ -37,11 +36,23 @@ public class Worker implements Runnable{
             
             //Preparo l'oggetto da inviare
             SerializedObject sObject = new SerializedObject();
+            //Aggiungo comando all'oggetto
             sObject.setCommand("COUNT");
+            //Aggiungo dati all'oggetto
+            String line = null;
+            messageBuilder.delete(0, messageBuilder.length());
             while ((line = bufferedReader.readLine()) != null) { //Throws IOException                
                 
-                sObject.addToTarget(line+"\n");
+                messageBuilder.append(line).append("\n");
             }
+            //Aggiungo il messaggio all'oggetto serializzabile
+            sObject.setTarget(new StringBuilder(messageBuilder));
+            // Inizializzo variabile response a false
+            sObject.setResponse(false);
+            
+            //Chiudo il file di input
+            bufferedReader.close();
+            fileReader.close();
 
             //Instauro una connessione con il server
             Socket socket = null;
@@ -52,38 +63,46 @@ public class Worker implements Runnable{
                     break;
                 } catch (IOException ex) {
                     OutMT.threadMessage(messageBuilder.delete(0, messageBuilder.length()).append("In attesa di connessione a ").append(Consts.SERVER_IP).append(" : ").append(Consts.SERVER_PORT).toString());
+                    //Attendo per non intasare di richieste il server
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ex1) {
+                        Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex1);
+                    }
                 }
             }
             
             // Inizializzo i buffer per la scrittura sul socket
             ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
+            // Invio oggetto al server
             outputStream.writeObject(sObject);
 
 
-            // Inizializzo i buffer per la lettura dal socket
-            InputStreamReader inputStreamReader = null;
+            // Inizializzo lo stream in input
+            debugging.threadMessage("Inizializzo lo stream in input");
+            ObjectInputStream inputStream = null;
             try {
-                inputStreamReader = new InputStreamReader(socket.getInputStream());
+                inputStream = new ObjectInputStream(socket.getInputStream());
             } catch (IOException ex) {
                 Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
             }
-            BufferedReader socketReader = new BufferedReader(inputStreamReader);
+            // Fine inizializzazione input
             
             debugging.threadMessage("Inizio ricezione");
-            String test = socketReader.readLine();
-            debugging.threadMessage("Stringa letta: " + test);
-            int wordCount;
-            wordCount = Integer.parseInt(test);
+            try {
+                sObject = (SerializedObject) inputStream.readObject();
+            } catch (ClassNotFoundException ex) {
+                Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            debugging.threadMessage("Oggetto letto");
+            int wordCount = (int) sObject.getTarget();
             debugging.threadMessage(String.valueOf(wordCount));
             
-            //Chiudo il file di input
-            bufferedReader.close();
-
             //------------CRITICAL SECTION START------------
             //apro il File di output (x APPEND) 
 
             //Acquisisco il lock per file di result
-            System.out.println("Thread per " + file + " in acquisizione lock per file risultati.");
+            debugging.threadMessage("Thread per " + file + " in acquisizione lock per file risultati.");
             Lock.acquire(0);
 
             //Scrivo il conteggio delle parole nel file di output
@@ -97,11 +116,11 @@ public class Worker implements Runnable{
             //Chiudo il file di output
             fileWriter.close();
             //Rilascio il lock
-            System.out.println("Thread per " + file + " in rilascio lock per file risultati.");
+            debugging.threadMessage("Thread per " + file + " in rilascio lock per file risultati.");
             Lock.release(0);
             
             //Acquisisco il lock per file di log
-            System.out.println("Thread per " + file + " in acquisizione lock per file log");
+            debugging.threadMessage("Thread per " + file + " in acquisizione lock per file log");
             Lock.acquire(1);
             
             long endTime = System.nanoTime();
@@ -118,16 +137,16 @@ public class Worker implements Runnable{
             //Chiudo il file di log
             logWriter.close();
             //Rilascio il lock
-            System.out.println("Thread per " + file + " in rilascio lock per file log.");
+            debugging.threadMessage("Thread per " + file + " in rilascio lock per file log.");
             Lock.release(1);
             
         } //------------CRITICAL SECTION END------------
         catch (FileNotFoundException ex1) {
             String msg = "Impossibile trovare il file '" + Consts.filePath + file + "' - " + ex1.getMessage();
-            System.out.println(msg);
+            debugging.threadMessage(msg);
         } catch (IOException ex2) {
             String msg = "I/O error: " + ex2.getMessage();
-            System.out.println(msg);
+            debugging.threadMessage(msg);
         }
     }
 }
