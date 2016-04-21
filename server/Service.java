@@ -74,26 +74,28 @@ public class Service implements Runnable {
         
         // Switch/Case per la gestione dei comandi inviati al server
         debugging.threadMessage("Switch/Case per la gestione dei comandi inviati al server");
-        switch(sObject.getCommand()) {
-            // Il comando COUNT permette di contare il numero di parole presenti in una stringa (che puo' anche comprendere \n)
-            case "COUNT":
-                debugging.threadMessage("Counting");
-                int counter=0;
-                Scanner scanner = new Scanner(sObject.getTarget().toString());
-                while (scanner.hasNextLine()) {
-                    
-                    String line = scanner.nextLine();
-                    debugging.threadMessage(line);
-                    String[] counted = line.split(" ");
-                    counter+=counted.length;
-                }
-                debugging.threadMessage("Invio dati calcolati: " + counter);
-                printWriter.println(counter);
-                break;
-            // Di default viene ritornato un errore se il comando non viene riconosciuto
-            default:
-                printWriter.println(new StringBuilder("ERRORE-404: Comando non riconosciuto").toString());
-                break;
+        if (!sObject.isResponse()) {
+            switch(sObject.getCommand()) {
+                // Il comando COUNT permette di contare il numero di parole presenti in una stringa (che puo' anche comprendere \n)
+                case "COUNT":
+                    debugging.threadMessage("Counting");
+                    int counter=0;
+                    Scanner scanner = new Scanner(sObject.getTarget().toString());
+                    while (scanner.hasNextLine()) {
+
+                        String line = scanner.nextLine();
+                        debugging.threadMessage(line);
+                        String[] counted = line.split(" ");
+                        counter+=counted.length;
+                    }
+                    debugging.threadMessage("Invio dati calcolati: " + counter);
+                    printWriter.println(counter);
+                    break;
+                // Di default viene ritornato un errore se il comando non viene riconosciuto
+                default:
+                    printWriter.println(new StringBuilder("ERRORE-404: Comando non riconosciuto").toString());
+                    break;
+            }
         }
         // Fine del Switch/case per la gestione comandi
         
