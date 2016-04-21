@@ -6,7 +6,7 @@ package utils;
  */
 public class SerializedObject implements java.io.Serializable {
     
-    private static final long serialVersionUID = 100000L;
+    private static final long serialVersionUID = 110000L;
     private String command;
     private boolean response;
     private StringBuilder target;
