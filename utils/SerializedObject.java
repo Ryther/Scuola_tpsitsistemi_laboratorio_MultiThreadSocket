@@ -6,15 +6,17 @@ package utils;
  */
 public class SerializedObject implements java.io.Serializable {
     
-    private static final long serialVersionUID = 110000L;
+    private static final long serialVersionUID = 120000L;
     private String command;
     private boolean response;
-    private StringBuilder target;
+    private Object target;
+    private String objectType;
     
     public SerializedObject() {
         
         this.command = new String();
-        this.target = new StringBuilder();
+        this.target = new Object();
+        this.objectType = new String();
     }
 
     public String getCommand() {
@@ -37,24 +39,15 @@ public class SerializedObject implements java.io.Serializable {
         this.response = response;
     }
 
-    public StringBuilder getTarget() {
+    public Object getTarget() {
         
         return target;
     }
 
-    public void setTarget(StringBuilder target) {
+    public void setTarget(Object target) {
         
         this.target = target;
-    }
-    
-    public void addToTarget(String string) {
-        
-        this.target.append(string);
-    }
-    
-    public void resetTarget() {
-        
-        this.target.delete(0, this.target.length());
+        this.objectType = target.getClass().getCanonicalName();
     }
     
     @Override
