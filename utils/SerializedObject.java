@@ -8,6 +8,7 @@ public class SerializedObject implements java.io.Serializable {
     
     private static final long serialVersionUID = 100000L;
     private String command;
+    private boolean response;
     private StringBuilder target;
     
     public SerializedObject() {
@@ -24,6 +25,16 @@ public class SerializedObject implements java.io.Serializable {
     public void setCommand(String command) {
         
         this.command = command;
+    }
+
+    public boolean isResponse() {
+        
+        return response;
+    }
+
+    public void setResponse(boolean response) {
+        
+        this.response = response;
     }
 
     public StringBuilder getTarget() {
