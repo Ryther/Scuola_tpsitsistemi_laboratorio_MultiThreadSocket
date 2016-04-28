@@ -1,10 +1,8 @@
 package server;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Scanner;
 import java.util.logging.Level;
@@ -39,19 +37,6 @@ public class Service implements Runnable {
         }
         // Fine inizializzazione input
         
-        // Inizializzo lo stream in output
-        debugging.threadMessage("Inizializzo lo stream in output");
-        OutputStreamWriter outputStreamWriter = null;
-        try {
-            outputStreamWriter = new OutputStreamWriter(socket.getOutputStream());
-        } catch (IOException ex) {
-            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-        BufferedWriter bufferedWriter = new BufferedWriter(outputStreamWriter);
-        PrintWriter printWriter = new PrintWriter(bufferedWriter, true);
-        // Fine inizializzazione input
-        
         // Leggo l'oggetto serializzabile dallo stream
         debugging.threadMessage("Leggo l'oggetto serializzabile dallo stream");
         SerializedObject sObject = null;
@@ -81,16 +66,39 @@ public class Service implements Runnable {
                         counter+=counted.length;
                     }
                     debugging.threadMessage("Invio dati calcolati: " + counter);
-                    printWriter.println(counter);
+                    // Preparo l'oggetto da inviare
+                    sObject.setTarget(new Integer(counter));
+                    sObject.setResponse(true);
+                    // Inizializzo i buffer per la scrittura sul socket
+                    ObjectOutputStream outputStream = null;
+            
+                    try {
+                        outputStream = new ObjectOutputStream(socket.getOutputStream());
+                    } catch (IOException ex) {
+                        Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    
+                    //Invio l'oggetto sul buffer
+                    try {
+                        outputStream.writeObject(sObject);
+                    } catch (IOException ex) {
+                        Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                     break;
                 // Di default viene ritornato un errore se il comando non viene riconosciuto
                 default:
-                    printWriter.println("ERRORE-404: Comando non riconosciuto");
+                    // Preparo l'oggetto errore da inviare
+                    sObject.setCommand("ERROR");
+                    sObject.setTarget(new String("ERRORE-404: Comando non riconosciuto"));
+                    sObject.setResponse(true);
                     break;
             }
         } else {
             
-            printWriter.println("ERRORE-500: Atteso messaggio, ricevuta risposta");
+            // Preparo l'oggetto errore da inviare
+            sObject.setCommand("ERROR");
+            sObject.setTarget(new String("ERRORE-500: Atteso messaggio, ricevuta risposta"));
+            sObject.setResponse(true);
         }
         // Fine del Switch/case per la gestione comandi
         
@@ -103,17 +111,7 @@ public class Service implements Runnable {
         }
         // Fine chiusura canale in lettura
         // Chiudo il canale (e relativi wrapper) di scrittura
-        printWriter.close();
-        try {
-            bufferedWriter.close();
-        } catch (IOException ex) {
-            Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        try {
-            outputStreamWriter.close();
-        } catch (IOException ex) {
-            Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        
         // Fine chiusura del canale (e relativi wrapper) di scrittura
     }
 }
