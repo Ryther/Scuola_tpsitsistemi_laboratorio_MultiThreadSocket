@@ -1,7 +1,6 @@
-package runner;
+package client;
 
 import java.io.*;
-import java.util.Arrays;
 
 public class RunnerParallelo {
 
