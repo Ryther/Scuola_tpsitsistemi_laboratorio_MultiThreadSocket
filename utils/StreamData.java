@@ -8,16 +8,16 @@ import java.io.Serializable;
  */
 public class StreamData implements java.io.Serializable {
     
-    private static final long serialVersionUID = 200000L;
+    private static final long serialVersionUID = 130000L;
     private String command;
     private boolean response;
-    private Serializable serializable;
+    private Object object;
     private String objectType;
     
     public StreamData() {
         
         this.command = new String();
-        this.serializable = (Serializable) new Object();
+        this.object = new Object();
         this.objectType = new String();
     }
 
@@ -43,18 +43,24 @@ public class StreamData implements java.io.Serializable {
 
     public Object getTarget() {
         
-        return serializable;
+        return object;
     }
 
-    public void setTarget(Serializable serializable) {
+    public void setTarget(Object object) {
         
-        this.serializable = serializable;
-        this.objectType = serializable.getClass().getCanonicalName();
+        if (object instanceof Serializable) {
+            
+            this.object = object;
+            this.objectType = object.getClass().getCanonicalName();
+        } else {
+            
+            throw new ClassCastException();
+        }
     }
     
     @Override
     public String toString() {
         
-        return this.serializable.toString();
+        return this.object.toString();
     }
 }
