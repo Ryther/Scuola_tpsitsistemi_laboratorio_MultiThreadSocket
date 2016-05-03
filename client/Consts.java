@@ -1,11 +1,11 @@
-package runner;
+package client;
 
 /**
  *
  * @author Flavio
  */
 public class Consts {
-    public static String SERVER_IP = "10.10.11.7";
+    public static String SERVER_IP = "127.0.0.1";
     public static int SERVER_PORT = 1234;
     
     public static final int     maxWaitTimeInMs = 500;
