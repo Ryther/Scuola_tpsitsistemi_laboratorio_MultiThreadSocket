@@ -1,28 +1,40 @@
-package runner;
+package client;
 
-import utils.Lock;
 import java.io.*;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import utils.Lock;
 import utils.OutMT;
-import utils.SerializedObject;
+import utils.StreamData;
+import utils.StreamHandler;
 
 public class Worker implements Runnable{
 
+    private static final int RESULTS_LOCK = 0;
+    private static final int LOG_LOCK = 1;
     private OutMT debugging = new OutMT();
     private String file = null;
-    private StringBuilder messageBuilder = new StringBuilder();
+    private StringBuilder messageBuilder;
+    private InetAddress host;
     
     public Worker(String file) {
         
         this.file = file;
+        try {
+            host = InetAddress.getLocalHost();
+        } catch (UnknownHostException ex) {
+            Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
     // worker process con protezione accesso risorse condivise
     @Override
     public void run() {
         debugging.activate();
+        messageBuilder = new StringBuilder();
         //Nome del file da leggere + Stringa per leggere le singole righe + Random per simulazione attesa
 
         try {
@@ -35,31 +47,15 @@ public class Worker implements Runnable{
             BufferedReader bufferedReader = new BufferedReader(fileReader);
             
             //Preparo l'oggetto da inviare
-            SerializedObject sObject = new SerializedObject();
-            //Aggiungo comando all'oggetto
-            sObject.setCommand("COUNT");
-            //Aggiungo dati all'oggetto
+            StreamData sData = new StreamData();
             String line = null;
-            messageBuilder.delete(0, messageBuilder.length());
-            while ((line = bufferedReader.readLine()) != null) { //Throws IOException                
-                
-                messageBuilder.append(line).append("\n");
-            }
-            //Aggiungo il messaggio all'oggetto serializzabile
-            sObject.setTarget(new StringBuilder(messageBuilder));
-            // Inizializzo variabile response a false
-            sObject.setResponse(false);
-            
-            //Chiudo il file di input
-            bufferedReader.close();
-            fileReader.close();
-
+            int wordCount = 0;
             //Instauro una connessione con il server
             Socket socket = null;
             
             while (true) {
                 try {
-                    socket = new Socket(Consts.SERVER_IP, Consts.SERVER_PORT);
+                    socket = new Socket(host, Consts.SERVER_PORT);
                     break;
                 } catch (IOException ex) {
                     OutMT.threadMessage(messageBuilder.delete(0, messageBuilder.length()).append("In attesa di connessione a ").append(Consts.SERVER_IP).append(" : ").append(Consts.SERVER_PORT).toString());
@@ -72,38 +68,48 @@ public class Worker implements Runnable{
                 }
             }
             
-            // Inizializzo i buffer per la scrittura sul socket
-            ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
-            // Invio oggetto al server
-            outputStream.writeObject(sObject);
-
-
-            // Inizializzo lo stream in input
-            debugging.threadMessage("Inizializzo lo stream in input");
-            ObjectInputStream inputStream = null;
-            try {
-                inputStream = new ObjectInputStream(socket.getInputStream());
-            } catch (IOException ex) {
-                Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            // Fine inizializzazione input
+            // Inizializzo i buffer per la scrittura/lettura sul socket
+            debugging.threadMessage("Inizializzo lo stream...");
+            StreamHandler streamHandler = new StreamHandler(socket);
+            debugging.threadMessage("...stream inizializzato");
             
-            debugging.threadMessage("Inizio ricezione");
-            try {
-                sObject = (SerializedObject) inputStream.readObject();
-            } catch (ClassNotFoundException ex) {
-                Logger.getLogger(Worker.class.getName()).log(Level.SEVERE, null, ex);
+            while ((line = bufferedReader.readLine()) != null) { //Throws IOException                
+                //Aggiungo comando all'oggetto
+                sData.setCommand("COUNT");
+                //Aggiungo dati all'oggetto
+                //Aggiungo il messaggio all'oggetto serializzabile
+                sData.setTarget(line);
+                // Inizializzo variabile response a false
+                sData.setResponse(false);
+                // Invio oggetto da elaborare
+                debugging.threadMessage("Invio oggetto da elaborare");
+                streamHandler.pushToStream(sData);
+                
+                // Leggo oggetto elaborato
+                debugging.threadMessage("Inizio ricezione oggetto elaborato");
+                sData = (StreamData) streamHandler.pullFromStream();
+                wordCount += (int) sData.getTarget();
+                debugging.threadMessage(String.valueOf(wordCount));
             }
-            debugging.threadMessage("Oggetto letto");
-            int wordCount = (int) sObject.getTarget();
-            debugging.threadMessage(String.valueOf(wordCount));
+            // Aggiungo comando di stop all'oggetto
+            sData.setCommand("STOP");
+            // Inizializzo variabile response a false
+            sData.setResponse(false);
+            // Invio oggetto stop al servizio
+            streamHandler.pushToStream(sData);
+            
+            //Chiudo il file di input
+            bufferedReader.close();
+            fileReader.close();
+            streamHandler.closeStream();
             
             //------------CRITICAL SECTION START------------
             //apro il File di output (x APPEND) 
 
             //Acquisisco il lock per file di result
             debugging.threadMessage("Thread per " + file + " in acquisizione lock per file risultati.");
-            Lock.acquire(0);
+            Lock.create(RESULTS_LOCK);
+            Lock.acquire(RESULTS_LOCK);
 
             //Scrivo il conteggio delle parole nel file di output
             String results = "File '" + file + "'\r\n"
@@ -117,11 +123,12 @@ public class Worker implements Runnable{
             fileWriter.close();
             //Rilascio il lock
             debugging.threadMessage("Thread per " + file + " in rilascio lock per file risultati.");
-            Lock.release(0);
+            Lock.release(RESULTS_LOCK);
             
             //Acquisisco il lock per file di log
             debugging.threadMessage("Thread per " + file + " in acquisizione lock per file log");
-            Lock.acquire(1);
+            Lock.create(LOG_LOCK);
+            Lock.acquire(LOG_LOCK);
             
             long endTime = System.nanoTime();
             long elapsedTime = endTime - startTime;
@@ -138,9 +145,9 @@ public class Worker implements Runnable{
             logWriter.close();
             //Rilascio il lock
             debugging.threadMessage("Thread per " + file + " in rilascio lock per file log.");
-            Lock.release(1);
+            Lock.release(LOG_LOCK);
             
-        } //------------CRITICAL SECTION END------------
+        } //------------CRITICAL SECTION END------------ //------------CRITICAL SECTION END------------
         catch (FileNotFoundException ex1) {
             String msg = "Impossibile trovare il file '" + Consts.filePath + file + "' - " + ex1.getMessage();
             debugging.threadMessage(msg);
